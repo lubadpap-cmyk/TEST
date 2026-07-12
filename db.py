@@ -301,7 +301,9 @@ def reset_daily_attempts_if_needed(user_id):
         user = cursor.fetchone()
 
     conn.close()
-    return user
+    if user:
+        return _normalize_user_row(user)
+    return None
 
 
 def use_attempt(user_id):
