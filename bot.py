@@ -3,6 +3,8 @@ import telebot
 from telebot import types
 import re
 import time
+import base64
+import io
 
 import config
 import db
@@ -10,7 +12,7 @@ import checker
 import generator
 import scheduler
 import locales
-from flask import Flask
+from flask import Flask, send_from_directory, Response
 from threading import Thread
 
 app = Flask(__name__)
@@ -18,6 +20,23 @@ app = Flask(__name__)
 @app.route('/')
 def home():
     return "Бот активен"
+
+
+@app.route('/favicon.ico')
+def favicon():
+    """Serve favicon from static folder if present, otherwise return a tiny inline PNG."""
+    static_dir = os.path.join(os.path.dirname(__file__), 'static')
+    ico_path = os.path.join(static_dir, 'favicon.ico')
+    try:
+        if os.path.exists(ico_path):
+            return send_from_directory(static_dir, 'favicon.ico')
+    except Exception:
+        pass
+
+    # Fallback 1x1 transparent PNG
+    png_b64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII='
+    png = base64.b64decode(png_b64)
+    return Response(png, mimetype='image/png')
 
 
 def run():
