@@ -1,3 +1,4 @@
+import os
 import telebot
 from telebot import types
 import re
@@ -11,16 +12,19 @@ import scheduler
 import locales
 from flask import Flask
 from threading import Thread
-import os
+
 app = Flask(__name__)
+
 @app.route('/')
 def home():
     return "Бот активен"
+
 
 def run():
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 10000)))
 
 Thread(target=run).start()
+
 user_recent_suggestions = {}
 
 # Initialize the bot
@@ -91,7 +95,7 @@ def send_welcome(message):
                         count = ref_user['referrals_count'] + 1
                         try:
                             if count == 3:
-                                db.set_premium(referrer_id, True)
+                                db.grant_referral_premium(referrer_id)
                                 bot.send_message(referrer_id, locales.get(ref_lang, 'ref_premium_granted'), parse_mode="HTML")
                             else:
                                 bot.send_message(referrer_id, locales.get(ref_lang, 'ref_success', count=count), parse_mode="HTML")
@@ -105,6 +109,8 @@ def send_welcome(message):
     markup.add(types.InlineKeyboardButton(locales.get(lang, 'btn_search'), callback_data="main_menu"))
     
     bot.send_message(message.chat.id, welcome_text, parse_mode="HTML", reply_markup=markup)
+    if user and user.get('premium_expired') == 1:
+        bot.send_message(message.chat.id, locales.get(lang, 'premium_expired'), parse_mode="HTML")
 
 @bot.message_handler(commands=['gift_premium'])
 def gift_premium(message):
@@ -120,7 +126,10 @@ def gift_premium(message):
         
     current_status = user['is_premium']
     new_status = 0 if current_status == 1 else 1
-    db.set_premium(user_id, new_status == 1)
+    if new_status == 1:
+        db.set_premium(user_id, True, premium_source='developer')
+    else:
+        db.set_premium(user_id, False, premium_source='none')
     
     status_text = "АКТИВИРОВАН ⭐" if new_status == 1 else "ДЕАКТИВИРОВАН ❌"
     bot.send_message(
@@ -218,6 +227,9 @@ def handle_callbacks(call):
     db.add_user(user_id, call.from_user.username or f"User_{user_id}")
     user = db.reset_daily_attempts_if_needed(user_id)
     
+    if user and user.get('premium_expired') == 1:
+        bot.send_message(call.message.chat.id, locales.get(user['language'] if user else 'ru', 'premium_expired'), parse_mode="HTML")
+
     # Handle back to welcome screen
     if call.data == "welcome_screen":
         welcome_text = (
@@ -762,8 +774,8 @@ def handle_callbacks(call):
         prices = [types.LabeledPrice(label='Premium Подписка', amount=config.PREMIUM_PRICE_STARS)]
         bot.send_invoice(
             call.message.chat.id,
-            title="Premium Подписка",
-            description="Безлимитный поиск, фильтр по маске и ловушки на ники.",
+            title="Premium на 1 месяц",
+            description="Безлимитный поиск, фильтр по маске и ловушки на ники на 1 месяц.",
             invoice_payload="premium_subscription",
             provider_token="",
             currency="XTR",
@@ -1106,7 +1118,10 @@ def process_admin_premium(message):
             bot.send_message(message.chat.id, "Пользователь с таким ID не найден в БД.")
             return
         new_status = 0 if user['is_premium'] == 1 else 1
-        db.set_premium(target_id, new_status == 1)
+        if new_status == 1:
+            db.set_premium(target_id, True, premium_source='admin')
+        else:
+            db.set_premium(target_id, False, premium_source='none')
         status_text = "ВЫДАН ⭐" if new_status == 1 else "ЗАБРАН ❌"
         bot.send_message(message.chat.id, f"Premium статус для пользователя {target_id} успешно {status_text}.")
         
@@ -1127,11 +1142,11 @@ def checkout(pre_checkout_query):
 
 @bot.message_handler(content_types=['successful_payment'])
 def got_payment(message):
-    db.set_premium(message.from_user.id, True)
+    db.set_premium(message.from_user.id, True, premium_source='payment', duration_days=config.PREMIUM_DURATION_DAYS)
     markup = types.InlineKeyboardMarkup()
     markup.add(types.InlineKeyboardButton("🔎 Перейти к поиску", callback_data="main_menu"))
     bot.send_message(message.chat.id,
-                     "🎉 <b>Оплата прошла успешно!</b>\n\nPremium активирован! Теперь вам доступны все функции бота.",
+                     "🎉 <b>Оплата прошла успешно!</b>\n\nPremium активирован на 1 месяц! Теперь вам доступны все функции бота.",
                      parse_mode='HTML', reply_markup=markup)
 
 # Handle text outside of states
