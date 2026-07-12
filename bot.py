@@ -22,6 +22,11 @@ def home():
     return "Бот активен"
 
 
+@app.route('/health')
+def health():
+    return "ok", 200
+
+
 @app.route('/favicon.ico')
 def favicon():
     """Serve favicon from static folder if present, otherwise return a tiny inline PNG."""
