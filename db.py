@@ -325,11 +325,11 @@ def use_attempt(user_id):
     return True
 
 
-def set_premium(user_id, is_premium, premium_until=None, premium_source='none', duration_days=1):
+def set_premium(user_id, is_premium, premium_until=None, premium_source='none', duration_days=None):
     conn = get_db_connection()
     cursor = conn.cursor()
     val = 1 if is_premium else 0
-    if is_premium and premium_until is None:
+    if is_premium and premium_until is None and duration_days is not None:
         premium_until = (datetime.utcnow() + timedelta(days=duration_days)).strftime('%Y-%m-%d %H:%M:%S')
     cursor.execute(
         "UPDATE users SET is_premium = ?, premium_until = ?, premium_source = ? WHERE user_id = ?",
