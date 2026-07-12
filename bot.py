@@ -245,6 +245,17 @@ def handle_callbacks(call):
     # Ensure user exists in database
     db.add_user(user_id, call.from_user.username or f"User_{user_id}")
     user = db.reset_daily_attempts_if_needed(user_id)
+    # Acknowledge callback immediately to avoid client waiting state
+    try:
+        bot.answer_callback_query(call.id)
+    except Exception:
+        pass
+
+    # Log callback for debugging
+    try:
+        print(f"Callback received: {call.data} from {user_id}")
+    except Exception:
+        pass
     
     if user and user.get('premium_expired') == 1:
         bot.send_message(call.message.chat.id, locales.get(user['language'] if user else 'ru', 'premium_expired'), parse_mode="HTML")
