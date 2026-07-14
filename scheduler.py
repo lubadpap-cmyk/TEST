@@ -40,7 +40,7 @@ def check_traps_loop(bot):
                         
                     else:
                         print(f"Trap checker: Error checking @{username} (likely rate limit/network). Skipping.")
-                        
+                        d
                     # Delay between individual checks to avoid rate limits
                     time.sleep(3.0)
                     
